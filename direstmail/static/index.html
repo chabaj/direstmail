@@ -1,0 +1,18 @@
+<div>
+  <li>
+    <input type="file">
+  </li>
+  <div id="message"></div>
+</div>
+
+<script src="internet_message.js"></script>
+<script src="internet_message.repr.js"></script>
+<script src="lobby.js"></script>
+<script>
+  document.querySelector('input[type="file"]').onchange = async function (event) {
+      var file = event.target.files[0]
+      var text = await file.text()
+      var message = InternetMessage.parse(text)
+      document.querySelector('#message').appendChild(repr(message))
+  }
+</script>
