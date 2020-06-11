@@ -1,38 +1,48 @@
 from functools import partial
-from os import listdir
+from os import listdir, sep
+from os.path import dirname
 from re import compile, split
 from email import message_from_file
-from www import Application as Static
-from www import Application as Router
+from www.static import Application as Static
+from www.router import Router
 
-static = Static(dirname(__file__ + '/static/'))
+static = Static(dirname(__file__) + '/static/')
 
-r_filter = compile('^/(?P<condition>([\w-]+=\".?*\")([\+\|]([\w-]+=\".?*\"))*)/(?P<order>\w+)$')
-r_field = compile('(?P<key>[\w-]+)=\"(?P<value>.?*)\"')
+r_filter = compile('^/(?P<condition>([\w-]+:\".*?\")([\.\|]([\w-]+:\".*?\"))*)/(?P<order>\w+)$')
+r_field = compile('(?P<operation>[\.\|])?(?P<key>[\w-]+):\"(?P<value>.*?)\"')
 
 def lists(location, environ, start_response):
     path = environ['PATH_INFO']
+    print('path: ', repr(path))
     match = r_filter.match(path)
-    if match is None:
-        start_response('404 Not Found', ())
-        return [b'Given format is not a valid list description']
-    condition, order = (match.group(name) for name in ('condition', 'order'))
-    header = {match.group('key'):compile(match.group('value'))
-              for match in
-              (r_field.match(term)
-               for term
-               in split('[\+\|]', condition))}
 
-    start_response('200 OK', ())
+    print('match:', match)
+    if match is None:
+        start_response('404 Not Found', [('Content-Type', 'text/plain')])
+        yield b'Given format is not a valid list description'
+        return
+    
+    condition, order = (match.group(name) for name in ('condition', 'order'))
+    print('condition:', condition, ", order:", order)
+    print(r_field.match(condition).groupdict())
+    header = {}
+
+    while (term := r_field.match(condition)) is not None:
+        print(condition, term)
+        condition = condition[term.end(0):]
+        header[term.group('key')] = compile(term.group('value'))
+
+    start_response('200 OK', [('Content-Type', 'application/json')])
 
     yield b'['
-    for filename in listdir():
-        with open(filename) as file:
+    for filename in listdir(location):
+        with open(location + sep + filename) as file:
             mail = message_from_file(file)
             
-            for key, value in header:
+            for key, rule in header.items():
+                print(key, rule, "<>", mail[key])
                 if (not (key in mail.keys()) or
-                    (value.match(mail[key]) is None)):
+                    (rule.match(mail[key]) is None)):
                     break
             else:
                 yield ('"' + filename + '",').encode('utf-8')
@@ -40,6 +50,7 @@ def lists(location, environ, start_response):
 
 class Application(Router):
     def __init__(self, location):
-        super(Router, self).__init__({'':static,,
-                                      '/mails/':Static(location),
-                                      '/lists/':partial(lists, location)})
+        print('location:', location)
+        super(Application, self).__init__((('/mails/', Static(location)),
+                                           ('/lists/', partial(lists, location)),
+                                           ('/', static)))

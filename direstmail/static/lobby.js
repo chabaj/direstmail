@@ -3,8 +3,8 @@ function Lobby(path) {
 	path = ''
     }
 
-    this.resources = {mails:path + '/mails/',
-		      lists:path + '/lists/'}
+    this.resources = {mails:path + '/mails',
+		      lists:path + '/lists'}
 }
 
 Lobby.prototype.listen = async function* (condition, order) {
@@ -14,7 +14,7 @@ Lobby.prototype.listen = async function* (condition, order) {
 	for await (let identifiers of websocket) {
 	    identifiers = JSON.stringify(identifiers)
 	    for (let identifier of identifiers) {
-		yield (await header(identifier))
+		yield (await this.header(identifier))
 	    }
 	}
     }
@@ -25,25 +25,28 @@ Lobby.prototype.listen = async function* (condition, order) {
     }
 }
 
-Lobby.prototype.list = async function (condition, order) {
-    let identifiers = await (fetch(this.resources.list + '/' + condition + '/' + order)
-			     .then(response => response.json()))
+Lobby.prototype.list = async function *(condition, order) {
+    let response = await fetch(this.resources.lists + '/' + condition + '/' + order)
+    let identifiers = await response.json()
 
     for (let identifier of identifiers) {
 	if (identifier !== null) {
-	    yield (await header(identifier))
+	    let mail = await this.mail(identifier)
+	    console.log('mail:', mail)
+	    yield mail
 	}
     }
 }
 
 Lobby.prototype.header = async function (identifier) {
-    return fetch(this.resources.mail + '/' + identifier)
-	.then(response=>response.text())
-	.then(text=>InternetMessage.parse.header(text))
+    let response = await fetch(this.resources.mails + '/' + identifier)
+    let text = await response.text()
+
+    return InternetMessage.parse.header(text)
 }
 
 Lobby.prototype.mail = async function (identifier) {
-    return fetch(this.resources.mail + '/' + identifier)
-	.then(response=>response.text())
-	.then(text=>InternetMessage.parse(text))
+    let response = await fetch(this.resources.mails + '/' + identifier)
+    let text = await response.text()
+    return InternetMessage.parse(text)
 }

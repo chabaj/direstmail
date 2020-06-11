@@ -13,6 +13,7 @@ InternetMessage.parse = function (text) {
     var [text, ..._body] = text.split(InternetMessage.endofheader)
     var header = InternetMessage.parse.header(text)
     var body = _body.join(InternetMessage.endofheader)
+    var match
     
     if (header['Content-Type'] !== undefined) {
 	if (match = /multipart\/\w+;.*?\s*boundary=\"(.*?)\"/.exec(header['Content-Type'])) {
@@ -59,9 +60,8 @@ InternetMessage.parse = function (text) {
 
 InternetMessage.parse.header = function (text) {
     var header = {}
-    var match
     text += InternetMessage.endofline
-    
+    var match
     while (match = InternetMessage.field.exec(text)) {
 	header[match[1]] = match[2].replace(/\r\n\s+/g, '')
 	text = text.slice(match[0].length, text.length)

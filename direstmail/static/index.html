@@ -9,10 +9,14 @@
 <script src="internet_message.repr.js"></script>
 <script src="lobby.js"></script>
 <script>
-  document.querySelector('input[type="file"]').onchange = async function (event) {
-      var file = event.target.files[0]
-      var text = await file.text()
-      var message = InternetMessage.parse(text)
-      document.querySelector('#message').appendChild(repr(message))
+  async function init() {
+      var lobby = new Lobby('')
+
+      for await (let message of lobby.list('To:".*"', 'Date')) {
+	  console.log(message)
+	  document.querySelector('#message').appendChild(repr(message))
+      }
   }
+
+  init()
 </script>

@@ -40,7 +40,7 @@ repr.text = function (message) {
 
 repr.text.html = function (message) {
     var body = message.body.children[0]
-    
+    console.log(body)
     // remove javascript interaction from html document
     Array.from(body.querySelectorAll('script')).map(element => element.remove())
     Array.from(body.querySelectorAll('*'))
@@ -62,8 +62,6 @@ repr.multipart = function (message) {
 }
 
 repr.multipart.mixed = function (message) {
-    var section = repr.multipart(message)
-    
     var section = document.createElement('div')
 
     for (let part of message.body) {
@@ -88,10 +86,10 @@ repr.multipart.mixed = function (message) {
 }
 
 repr.multipart.related = function (message) {
-    var html = (message.body.filter(message => (message
-						.header['Content-Type']
-						.startsWith('text/html')))[0]
-		.body)
+    var html_part = message.body.filter(message => (message
+						    .header['Content-Type']
+						    .startsWith('text/html')))[0]
+    var html = repr(html_part)
     var related_contents = message.body.reduce(function (accumulator, message) {
 	if (message.header['Content-ID']) {
 	    accumulator[message.header['Content-ID'].slice(1, -1)] = message
