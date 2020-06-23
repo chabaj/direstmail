@@ -92,7 +92,7 @@ repr.multipart.related = function (message) {
     var html = repr(html_part)
     var related_contents = message.body.reduce(function (accumulator, message) {
 	if (message.header['Content-ID']) {
-	    accumulator[message.header['Content-ID'].slice(1, -1)] = message
+	    accumulator[message.header['Content-ID'].slice(1, -1)] = URL.createObjectURL(message.body)
 	}
 	
 	return accumulator
@@ -103,11 +103,10 @@ repr.multipart.related = function (message) {
 	let src = img.getAttribute('src')
 
 	if (src.startsWith('cid:')) {
-	    src = src.slice('cid:'.length, src.length)
-	    related_content = related_contents[src]
+	    let related_content = related_contents[src.slice('cid:'.length, src.length)]
 	    
-	    if(related_content) {
-		img.setAttribute('src', URL.createObjectURL(related_content.body))
+	    if (related_content) {
+		img.setAttribute('src', related_content)
 	    }
 	}
     }
@@ -117,10 +116,10 @@ repr.multipart.related = function (message) {
 	
 	if (href && href.startsWith('cid:')) {
 	    href = href.slice('cid:'.length, href.length)
-	    related_content = related_contents[href]
+	    let related_content = related_contents[href]
 	    
-	    if(related_content) {
-		a.setAttribute('href', URL.createObjectURL(related_content.body))
+	    if (related_content) {
+		a.setAttribute('href', related_content)
 	    }
 	}
     }

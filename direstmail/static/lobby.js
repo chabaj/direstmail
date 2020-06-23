@@ -7,8 +7,11 @@ function Lobby(path) {
 		      lists:path + '/lists'}
 }
 
-Lobby.prototype.listen = async function* (condition, order) {
-    var websocket = new Websocket(this.resources.list + '/' + condition + '/' + order)
+Lobby.prototype.listen = async function* (condition, order, ascending) {
+    var websocket = new Websocket(this.resources.list +
+				  '/' + order +
+				  ':' + (ascending ? 'asc' : 'desc') +
+				  '/' +  condition)
 	
     try {
 	for await (let identifiers of websocket) {
@@ -25,15 +28,18 @@ Lobby.prototype.listen = async function* (condition, order) {
     }
 }
 
-Lobby.prototype.list = async function *(condition, order) {
-    let response = await fetch(this.resources.lists + '/' + condition + '/' + order)
+Lobby.prototype.list = async function *(condition, order, ascending) {
+    
+    let response = await fetch(this.resources.lists +
+			       '/' + order +
+			       ':' + (ascending?'asc':'desc') +
+			       '/' + condition)
     let identifiers = await response.json()
 
     for (let identifier of identifiers) {
 	if (identifier !== null) {
-	    let mail = await this.mail(identifier)
-	    console.log('mail:', mail)
-	    yield mail
+	    let header = await this.header(identifier)
+	    yield [identifier, header]
 	}
     }
 }
