@@ -3,25 +3,27 @@ function InternetMessage(header, body) {
     this.body = body
 }
 
+/* TODO: implement serialization
+InternetMessage.prototype.serialize = function () {
+return string
+}
+*/
 InternetMessage.endofline = '\r\n'
 InternetMessage.endofheader = (InternetMessage.endofline +
 			       InternetMessage.endofline)
 InternetMessage.field = /^(.+?):\s+(.+?(?:\r\n\s+.*?)*)(?:\r\n)/
 
-// TODO: break into subroutines
 InternetMessage.parse = function (text) {
     var [text, ..._body] = text.split(InternetMessage.endofheader)
     var header = InternetMessage.parse.header(text)
-    var body =_body.join(InternetMessage.endofheader)
 
-    return new InternetMessage(header, InternetMessage.parse.body(header, body))
+    return new InternetMessage(header, InternetMessage.parse.body(header,
+								  body.join(InternetMessage.endofheader)))
 }
 
 InternetMessage.parse.body = function (header, body) {
-    var match
-    
     if (header['Content-Type'] !== undefined) {
-	if (match = /multipart\/\w+;.*?\s*boundary=\"(.*?)\"/.exec(header['Content-Type'])) {
+	if (let match = /multipart\/\w+;.*?\s*boundary=\"(.*?)\"/.exec(header['Content-Type'])) {
 	    return InternetMessage.parse.body.multipart(match[1], body)
 	}
 	else if (/^text\/\w+/.test(header['Content-Type'])) {
@@ -96,7 +98,6 @@ InternetMessage.parse.header = function (text) {
 }
 
 InternetMessage.parse.header.decodeValue = function (value) {
-    
     return value.replace(/=\?(.*?)\?(.*?)\?(.*?)\?=/g,
 			 function (match, charset, encoding, text) {
 			     if (encoding === 'B') {

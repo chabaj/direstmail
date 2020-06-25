@@ -3,7 +3,7 @@ from os import listdir, sep
 from os.path import dirname, exists, abspath, join
 from re import compile, split
 from email import message_from_file
-from flask import Flask, Response, send_from_directory, send_file, current_app
+from flask import Flask, Response, send_from_directory, send_file, current_app, request, abort
 
 application = Flask(__name__,
                     static_url_path='/',
@@ -14,9 +14,14 @@ r_field = compile('(?P<operation>[\.\|])?(?P<key>[\w-]+):\"(?P<value>.*?)\"')
 
 @application.route('/lists/<string:_order>:<string:_field>/<path:condition>')
 def lists(_order, _field, condition):
-    print(lists, _order, _field, condition)
-    location = current_app.config['location']
+    user = request.remote_user
+    try:
+        user_mail_addresses = current_app.config['users'][user]
+    except KeyError as ke:
+        return abort(401)
+    
     order = _order, _field
+    location = current_app.config['location']
 
     header = {}
     while (term := r_field.match(condition)) is not None:
@@ -30,6 +35,18 @@ def lists(_order, _field, condition):
         for filename in listdir(location):
             with open(location + sep + filename) as file:
                 mail = message_from_file(file)
+
+                visible = False
+                for mail_addresses in (mail['From'], mail['To']):
+                    for user_mail_address in user_mail_addresses:
+                        if user_mail_address in mail_addresses:
+                            visible = True
+                            break
+                    if visible:
+                        break
+
+                if not visible:
+                    continue
                 
                 for key, rule in header.items():
                     if (not (key in mail.keys()) or
@@ -50,11 +67,32 @@ def lists(_order, _field, condition):
 #       and the headers view could be simply removed.
 @application.route('/headers/<string:filename>')
 def headers(filename):
+    user = request.remote_user
     location = curent_app.config['location']
+    filepath = join(location, filename)
+    try:
+        user_mail_addresses = current_app.config['users'][user]
+    except KeyError as ke:
+        return abort(401)
+
+    with open(filepath) as file:
+        mail = message_from_file(file)
+        visible = False
+        for mail_addresses in (mail['From'], mail['To']):
+            for user_mail_address in user_mail_addresses:
+                if user_mail_address in mail_addresses:
+                    visible = True
+                    break
+            if visible:
+                break
+
+    if not visible:
+        return abort(403)
+        
     if filename.endswith('.eml'):
         def read_header():
             header_content_separator = b'\r\n\r\n'
-            with open(filename, 'rb').read() as file:
+            with open(filepath, 'rb').read() as file:
                 buffer = b''
                 while (byte := file.read(1)) is not None:
                     buffer += byte
@@ -71,8 +109,28 @@ def headers(filename):
 
 @application.route('/mails/<string:filename>')
 def mails(filename):
-    location = current_app.config['location']
+    user = request.remote_user
+    location = curent_app.config['location']
     filepath = join(location, filename)
+    try:
+        user_mail_addresses = current_app.config['users'][user]
+    except KeyError as ke:
+        return Response('Authenticate yourself !', 401)
+
+    with open(filepath) as file:
+        mail = message_from_file(file)
+        visible = False
+        for mail_addresses in (mail['From'], mail['To']):
+            for user_mail_address in user_mail_addresses:
+                if user_mail_address in mail_addresses:
+                    visible = True
+                    break
+            if visible:
+                break
+
+    if not visible:
+        return Response('Not Authorized', 403)
+
     if filepath.endswith('.eml'):
         return send_file(filepath)
     else:
