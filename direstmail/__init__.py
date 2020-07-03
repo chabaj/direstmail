@@ -14,15 +14,15 @@ r_field = compile('(?P<operation>[\.\|])?(?P<key>[\w-]+):\"(?P<value>.*?)\"')
 
 @application.route('/lists/<string:_order>:<string:_field>/<path:condition>')
 def lists(_order, _field, condition):
+    location = current_app.config['location']
     user = request.remote_user
+    order = _order, _field
+
     try:
         user_mail_addresses = current_app.config['users'][user]
     except KeyError as ke:
         return abort(401)
     
-    order = _order, _field
-    location = current_app.config['location']
-
     header = {}
     while (term := r_field.match(condition)) is not None:
         condition = condition[term.end(0):]
@@ -62,19 +62,16 @@ def lists(_order, _field, condition):
     
     return Response(generate(), mimetype='text/csv')
 
-# TODO: headers could be shifted by implementing a Content-Range approach on client side
-#       then the mails view would be sufficient
-#       and the headers view could be simply removed.
 @application.route('/headers/<string:filename>')
 def headers(filename):
-    user = request.remote_user
     location = curent_app.config['location']
+    user = request.remote_user
     filepath = join(location, filename)
     try:
         user_mail_addresses = current_app.config['users'][user]
     except KeyError as ke:
         return abort(401)
-
+    
     with open(filepath) as file:
         mail = message_from_file(file)
         visible = False
@@ -85,10 +82,10 @@ def headers(filename):
                     break
             if visible:
                 break
-
+    
     if not visible:
         return abort(403)
-        
+    
     if filename.endswith('.eml'):
         def read_header():
             header_content_separator = b'\r\n\r\n'
@@ -96,11 +93,11 @@ def headers(filename):
                 buffer = b''
                 while (byte := file.read(1)) is not None:
                     buffer += byte
-
+                    
                     if buffer.endswith(header_content_separator):
                         break
                     yield byte
-
+                    
                     buffer = buffer[-len(header_content_separator):]
         
         return Response(read_header(), 200)
@@ -109,8 +106,8 @@ def headers(filename):
 
 @application.route('/mails/<string:filename>')
 def mails(filename):
-    user = request.remote_user
     location = curent_app.config['location']
+    user = request.remote_user
     filepath = join(location, filename)
     try:
         user_mail_addresses = current_app.config['users'][user]
@@ -135,7 +132,3 @@ def mails(filename):
         return send_file(filepath)
     else:
         abort(404)
-
-# @application.route('/<path:path>')
-# def static(path):
-#      return send_from_directory(static_path, path)
